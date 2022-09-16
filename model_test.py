@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import os
 
-
+from model_auc_metrics import classification_pr_auc, regression_pr_auc, regression_roc_auc
 from constraint import *
 
 ''''''
@@ -71,18 +71,30 @@ def v_mean_and_std_deviation(data, output=True):
     return result
 
 
-def print_average_metrics_from_log():
-    mse_metrics, perform_metrics = [], []
+def calc_cv_average_metrics(threshold):
+    print(f"threshold={threshold}")
+    mse_metric_mat, perform_metric_mat = [], []
     for i in range(5):
-        _path = os.path.join(LOG_ROOT, f"./test-log-{i}.log")
-        with open(_path, "rt", encoding="utf8") as f:
-            lines = [x.strip() for x in f.readlines() if x.strip()]
-            mse_metrics.append(eval(lines[-2]))
-            perform_metrics.append(eval(lines[-1]))
-    v_mean_and_std_deviation(mse_metrics)
-    v_mean_and_std_deviation(perform_metrics)
+        y = pickle.load(
+            open(os.path.join(PICKLE_DEST_ROOT, f"{i}-y_test.p"), "rb"))
+        y_predict = pickle.load(
+            open(os.path.join(PICKLE_DEST_ROOT, f"{i}-predict.p"), "rb"))
+        #
+        perf_metrics = [
+            regression_roc_auc(y, y_predict),
+            regression_pr_auc(y, y_predict),
+            classification_pr_auc(y, y_predict, threshold),
+        ]
+        perf_metrics.extend(
+            classification_perf_metrics(y, y_predict, threshold))
+        #
+        mse_metric_mat.append(mse_metrics(y, y_predict))
+        perform_metric_mat.append(perf_metrics)
+    #
+    v_mean_and_std_deviation(mse_metric_mat)
+    v_mean_and_std_deviation(perform_metric_mat)
 
 
 if __name__ == '__main__':
-    print_average_metrics_from_log()
+    calc_cv_average_metrics(threshold=30)
     # cv_threshold_select()

@@ -10,8 +10,7 @@ import pickle
 
 from constraint import *
 from model_train import train_model
-from model_test import predict_model, mse_metrics, classification_perf_metrics
-from model_auc_metrics import regression_pr_auc, regression_roc_auc
+from model_test import predict_model
 
 
 parser = argparse.ArgumentParser()
@@ -19,7 +18,6 @@ parser.add_argument("--test_fold", type=int, default=0)
 parser.add_argument("--epoch", type=int, default=100)
 parser.add_argument("--gpu_i", type=str, default="3")
 parser.add_argument("--train_mode", action="store_true")
-parser.add_argument("--threshold", type=int, default=30)
 parse_result = parser.parse_args()
 print(parse_result)
 
@@ -86,26 +84,18 @@ def start_training(epochs=100):
     # draw_history(history, 'val_loss')
 
 
-def start_test(threshold):
+def start_test():
     uuid = f"{TEST_FOLD}-{norm}_{','.join([str(x) for x in layers])}_{act_func}_{dropout}_{input_dropout}_{eta}"
     model = build_model(layers, float(eta), getattr(
         tf.nn, act_func), input_dropout, dropout)
 
     pickle.dump(y_test, open(os.path.join(
         PICKLE_DEST_ROOT, f"{TEST_FOLD}-y_test.p"), "wb"))
-    y_predict = predict_model(uuid, model, X_test)
-
-    print(f"threshold={threshold}")
-    print(mse_metrics(y_test, y_predict))
-
-    perf_metrics = classification_perf_metrics(y_test, y_predict, threshold)
-    perf_metrics.insert(0, regression_roc_auc(y_test, y_predict))
-    perf_metrics.insert(1, regression_pr_auc(y_test, y_predict))
-    print(perf_metrics)
+    predict_model(uuid, model, X_test)
 
 
 if __name__ == '__main__':
     if parse_result.train_mode:
         start_training(parse_result.epoch)
     else:
-        start_test(parse_result.threshold)
+        start_test()

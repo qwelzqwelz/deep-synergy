@@ -74,6 +74,10 @@ def regression_pr_auc(y, y_predict):
     return auc(*_regression_curve(y, y_predict, _pr_recall_func)[:2])
 
 
+def classification_pr_auc(y, y_predict, threshold):
+    return auc(*precision_recall_curve(*bin_threshold_map(y, y_predict, threshold))[:2])
+
+
 ''''''
 
 
@@ -122,4 +126,5 @@ def plt_pre_recall_curve(index: int, is_std=True):
 
 if __name__ == '__main__':
     for i in range(5):
-        plt_roc_curve(i, is_std=True)
+        # plt_roc_curve(i, is_std=True)
+        plt_pre_recall_curve(i, is_std=False)

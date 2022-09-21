@@ -4,7 +4,7 @@ from keras.models import Sequential
 from keras.callbacks import EarlyStopping
 import os.path
 
-from constraint import *
+from constant import *
 
 
 def train_early_stop(uuid: str, model: Sequential, x, y, x_val, y_val, epochs, patience=50, cache_weights=True):

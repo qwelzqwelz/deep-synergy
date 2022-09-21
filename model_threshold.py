@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 from model_test import mse_metrics, classification_perf_metrics, v_mean_and_std_deviation
-from constraint import *
+from constant import *
 
 TARGET_METRIC = [0.92, 0.76, 0.56, 0.57, 0.95, 0.51]
 

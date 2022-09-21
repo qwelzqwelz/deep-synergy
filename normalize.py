@@ -3,7 +3,7 @@ import pandas as pd
 import pickle
 import os
 
-from constraint import *
+from constant import *
 
 file = open(os.path.join(DATA_ROOT, "X.p"), 'rb')
 X = pickle.load(file)

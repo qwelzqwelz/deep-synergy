@@ -6,7 +6,7 @@ import pickle
 import os
 
 from model_auc_metrics import classification_pr_auc, regression_pr_auc, regression_roc_auc
-from constraint import *
+from constant import *
 
 ''''''
 

@@ -10,7 +10,7 @@ import pickle
 import json
 import numpy as np
 
-from constraint import *
+from constant import *
 from model_train import train_model, train_early_stop
 from model_test import predict_model, mse_metrics
 from normalize import split_folds

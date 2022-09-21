@@ -63,7 +63,7 @@ hyper-parameters
 '''
 
 
-class SuperParameters:
+class HyperParameters:
     SP_KEYS = ("layers", "eta", "act_func", "dropout", "input_dropout", "norm")
 
     def __init__(self, layers: list, act_func: str, dropout: float, input_dropout: float, eta: float, norm: str):
@@ -105,7 +105,7 @@ class SuperParameters:
     def load_from(f_name: str):
         path = os.path.join(HP_ROOT, f_name)
         assert os.path.exists(path)
-        return SuperParameters(**json.load(open(path, "rt")))
+        return HyperParameters(**json.load(open(path, "rt")))
 
 
 '''
@@ -113,7 +113,7 @@ model
 '''
 
 
-def build_model(hp: SuperParameters):
+def build_model(hp: HyperParameters):
     model = Sequential()
     act_func = getattr(tf.nn, hp.act_func)
     # 隐含层
@@ -164,7 +164,7 @@ def _sp_meshgrid():
     return result
 
 
-def start_training(hp: SuperParameters, epochs=None):
+def start_training(hp: HyperParameters, epochs=None):
     epochs = epochs or DEFAULT_EPOCHS
     model = build_model(hp)
     #
@@ -174,7 +174,7 @@ def start_training(hp: SuperParameters, epochs=None):
     # draw_history(history, 'val_loss')
 
 
-def start_test(hp: SuperParameters):
+def start_test(hp: HyperParameters):
     X_train, X_test, y_train, y_test = load_data_from_disk(TEST_FOLD, hp.norm)
     model = build_model(hp)
     pickle.dump(y_test, open(os.path.join(
@@ -186,7 +186,7 @@ def start_inner_cv_search(epochs=None, patience=50):
     epochs = epochs or DEFAULT_EPOCHS
     mse_dict = dict()
     for sp_list in _sp_meshgrid():
-        hp = SuperParameters(**dict(zip(HP_SPACE.keys(), sp_list)))
+        hp = HyperParameters(**dict(zip(HP_SPACE.keys(), sp_list)))
         avaiable_folds = [x for x in range(SUM_FOLDS) if x != TEST_FOLD]
         mse_list = []
         for valid_fold in avaiable_folds:
@@ -228,7 +228,7 @@ def start_inner_cv_search(epochs=None, patience=50):
 if __name__ == '__main__':
     assert parse_result.train_mode or parse_result.test_mode or parse_result.cv_mode
 
-    HP = SuperParameters.load_from(parse_result.hp_name)
+    HP = HyperParameters.load_from(parse_result.hp_name)
 
     if parse_result.train_mode:
         print(f"test_fold={TEST_FOLD}, hyper-parameters={HP}")

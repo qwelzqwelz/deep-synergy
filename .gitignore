@@ -1,10 +1,16 @@
+# IDE cache
 .vscode/
 __pycache__
 
+# output
 nohup.out
-
 weights/
 logs/
 images/
 
+# cross validation
+predict_data/cv*
+hyper-params/cv*
+
+# test
 *-test.py

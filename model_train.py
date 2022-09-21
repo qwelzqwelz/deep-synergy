@@ -6,12 +6,10 @@ import os.path
 
 from constraint import *
 
-PATIENCE = 8
 
-
-def train_early_stop(uuid: str, model: Sequential, x, y, x_val, y_val, epochs):
+def train_early_stop(uuid: str, model: Sequential, x, y, x_val, y_val, epochs, patience=50):
     early_stop_callback = EarlyStopping(
-        monitor='val_loss', min_delta=0.01, patience=PATIENCE)
+        monitor='val_loss', min_delta=0.01, patience=patience)
     save_callback = ModelCheckpoint(
         os.path.join(WEIGHT_ROOT, f"./{uuid}.weights"), monitor='val_loss', verbose=0,
         save_best_only=True, save_weights_only=True, mode='auto', period=1,

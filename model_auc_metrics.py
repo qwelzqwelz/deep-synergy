@@ -116,7 +116,7 @@ def plt_pre_recall_curve(index: int, is_std=True):
     #
     title = f"test_fold_{index} Precision-Recall Curve" + \
         ("_std" if is_std else "")
-    print(thresholds)
+    print("thresholds:", thresholds)
     draw_auc_curve(
         precision, recall, "Precision", "Recall", title,
         save_path=os.path.join(IMAGE_DEST_ROOT, f"{title}.png"),

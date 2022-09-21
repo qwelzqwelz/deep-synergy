@@ -16,13 +16,13 @@ def evaluate_model(uuid: str, model: Sequential, x, y):
     return model.evaluate(x, y, batch_size=1024)
 
 
-def predict_model(uuid: str, model: Sequential, x, save_pre=True):
+def predict_model(uuid: str, model: Sequential, x, save_pre=True, dump_prefix=None):
     model.load_weights(os.path.join(WEIGHT_ROOT, f"{uuid}.weights"))
     result = model.predict(x, batch_size=1024)
     result = np.array(result).flatten()
     if save_pre:
         pickle.dump(result, open(os.path.join(
-            PICKLE_DEST_ROOT, f"{uuid[0]}-predict.p"), "wb"))
+            PICKLE_DEST_ROOT, f"{dump_prefix or uuid[0]}-predict.p"), "wb"))
     return result
 
 

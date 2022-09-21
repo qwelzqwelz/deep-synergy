@@ -1,3 +1,6 @@
+from cgi import test
+from tkinter.messagebox import NO
+from unittest import result
 from tensorflow.compat.v1.keras.backend import set_session
 from keras.layers import Dense, Dropout
 from keras.models import Sequential
@@ -7,26 +10,27 @@ import tensorflow as tf
 import argparse
 import os
 import pickle
+import numpy as np
 
 from constraint import *
-from model_train import train_model
-from model_test import predict_model
+from model_train import train_model, train_early_stop
+from model_test import predict_model, mse_metrics
+from normalize import split_folds
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--test_fold", type=int, default=0)
 parser.add_argument("--epoch", type=int, default=100)
+parser.add_argument("--patience", type=int, default=50)
 parser.add_argument("--gpu_i", type=str, default="3")
 parser.add_argument("--train_mode", action="store_true")
+parser.add_argument("--test_mode", action="store_true")
+parser.add_argument("--cv_mode", action="store_true")
 parse_result = parser.parse_args()
-print(parse_result)
+print("[args]", parse_result)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = parse_result.gpu_i
 TEST_FOLD = parse_result.test_fold
-#
-file = open(os.path.join(DATA_ROOT, f"data_test_fold{TEST_FOLD}_tanh.p"), 'rb')
-X_train, X_test, y_train, y_test = pickle.load(file)
-file.close()
 
 config = tf.compat.v1.ConfigProto(
     allow_soft_placement=True,
@@ -34,22 +38,73 @@ config = tf.compat.v1.ConfigProto(
 set_session(tf.compat.v1.Session(config=config))
 
 
-def build_model(layers: list, lr: float, act_func, input_dropout, dropout):
+def load_data_from_disk(test_fold: int, norm: str):
+    file = open(os.path.join(
+        DATA_ROOT, f"data_test_fold{test_fold}_{norm}.p"), 'rb')
+    X_train, X_test, y_train, y_test = pickle.load(file)
+    file.close()
+    return X_train, X_test, y_train, y_test
+
+
+def load_data_from_mem(avaiable_folds: list, valid_fold: int, norm: str):
+    # X_train, X_test, y_train, y_test
+    return split_folds(
+        train_folds=[x for x in avaiable_folds if x != valid_fold],
+        valid_folds=[valid_fold],
+        norm=norm,
+    )
+
+
+class SuperParameters:
+    SP_KEYS = ("layers", "eta", "act_func", "dropout", "input_dropout", "norm")
+
+    def __init__(self, layers: list, act_func: str, dropout: float, input_dropout: float, eta: float, norm: str):
+        self.layers = layers
+        self.act_func = act_func
+        self.dropout = dropout
+        self.input_dropout = input_dropout
+        self.eta = eta
+        self.norm = norm
+
+    def uuid(self, with_prefix=True) -> str:
+        result = [
+            self.norm,
+            ','.join([str(x) for x in self.layers]),
+            self.act_func,
+            self.dropout,
+            self.input_dropout,
+            self.eta,
+        ]
+        result = '_'.join([str(x) for x in result])
+        if with_prefix:
+            result = f"{TEST_FOLD}-{result}"
+        return result
+
+    def p_dict(self) -> dict:
+        result = [getattr(self, key) for key in self.SP_KEYS]
+        result = dict(zip(self.SP_KEYS, result))
+        return result
+
+
+def build_model(sp: SuperParameters):
     model = Sequential()
-    for i in range(len(layers)):
+    act_func = getattr(tf.nn, sp.act_func)
+    # 隐含层
+    for i in range(len(sp.layers)):
         if i == 0:
-            model.add(Dense(layers[i], input_shape=(X_train.shape[1],), activation=act_func,
+            model.add(Dense(sp.layers[i], input_shape=(8846,), activation=act_func,
                             kernel_initializer='he_normal'))
-            model.add(Dropout(float(input_dropout)))
-        elif i == len(layers) - 1:
-            model.add(Dense(layers[i], activation='linear',
+            model.add(Dropout(float(sp.input_dropout)))
+        elif i == len(sp.layers) - 1:
+            model.add(Dense(sp.layers[i], activation='linear',
                       kernel_initializer="he_normal"))
         else:
-            model.add(Dense(layers[i], activation=act_func,
+            model.add(Dense(sp.layers[i], activation=act_func,
                       kernel_initializer="he_normal"))
-            model.add(Dropout(float(dropout)))
+            model.add(Dropout(float(sp.dropout)))
+    # 编译
     model.compile(loss='mean_squared_error', optimizer=SGD(
-        learning_rate=lr, momentum=0.5))
+        learning_rate=sp.eta, momentum=0.5))
     return model
 
 
@@ -66,36 +121,86 @@ def draw_history(history, *keys):
 入口函数
 '''
 
+DEFAULT_EPOCHS = 100
 
-def start_training(epochs=100):
-    layers = [8182, 4096, 1]
-    act_func = "relu"
-    dropout = 0.5
-    input_dropout = 0.2
-    eta = 0.00001
-    norm = 'tanh'
 
-    uuid = f"{TEST_FOLD}-{norm}_{','.join([str(x) for x in layers])}_{act_func}_{dropout}_{input_dropout}_{eta}"
+def _sp_meshgrid():
+    result = [[]]
+    for sp_list in SP_SPACE.values():
+        new_result = []
+        for sp in sp_list:
+            for combi in result:
+                elem = combi.copy()
+                elem.append(sp)
+                new_result.append(elem)
+        result = new_result
+    return result
 
-    model = build_model(layers, float(eta), getattr(
-        tf.nn, act_func), input_dropout, dropout)
-    history = train_model(uuid, model, X_train, y_train,
-                          X_test, y_test, epochs)
+
+def start_training(sp: SuperParameters, epochs=None):
+    epochs = epochs or DEFAULT_EPOCHS
+    model = build_model(sp)
+    #
+    X_train, X_test, y_train, y_test = load_data_from_disk(TEST_FOLD, sp.norm)
+    history = train_model(sp.uuid(), model, X_train,
+                          y_train, X_test, y_test, epochs)
     # draw_history(history, 'val_loss')
 
 
-def start_test():
-    uuid = f"{TEST_FOLD}-{norm}_{','.join([str(x) for x in layers])}_{act_func}_{dropout}_{input_dropout}_{eta}"
-    model = build_model(layers, float(eta), getattr(
-        tf.nn, act_func), input_dropout, dropout)
-
+def start_test(sp: SuperParameters):
+    X_train, X_test, y_train, y_test = load_data_from_disk(TEST_FOLD, sp.norm)
+    model = build_model(sp)
     pickle.dump(y_test, open(os.path.join(
         PICKLE_DEST_ROOT, f"{TEST_FOLD}-y_test.p"), "wb"))
-    predict_model(uuid, model, X_test)
+    predict_model(sp.uuid(), model, X_test)
+
+
+def start_cv_search(epochs=None, patience=50):
+    epochs = epochs or DEFAULT_EPOCHS
+    mse_dict = dict()
+    for sp_list in _sp_meshgrid():
+        sp = SuperParameters(**dict(zip(SP_SPACE.keys(), sp_list)))
+        avaiable_folds = [x for x in range(SUM_FOLDS) if x != TEST_FOLD]
+        mse_list = []
+        for valid_fold in avaiable_folds:
+            # 构造数据
+            X_train, X_test, y_train, y_test = load_data_from_mem(
+                avaiable_folds, valid_fold, sp.norm)
+            model = build_model(sp)
+            uuid = f"cv_{valid_fold}_{sp.uuid()}"
+            # 训练
+            train_early_stop(uuid, model, X_train,
+                             y_train, X_test, y_test, epochs, patience)
+            # 测试
+            cv_predict_y = np.array(model.predict(
+                X_test, batch_size=1024)).flatten()
+            mse, rmse = mse_metrics(y_test, cv_predict_y)
+            mse_list.append(mse)
+            print(
+                f"TEST_FOLD={TEST_FOLD}, avaible_folds={avaiable_folds}, valid_fold={valid_fold}")
+            print("sp:", sp.p_dict())
+            print(f"mse={mse}, rmse={rmse}")
+            # 删除变量
+            del X_train, X_test, y_train, y_test, model
+        mse_dict[sp] = mse_list
+    # 排序
+    result = list(mse_dict.items())
+    result.sort(key=lambda p: np.mean(p[1]))
+    # 输出信息
+    for _sp, _mse_list in result:
+        print(_sp.p_dict(), "=>", _mse_list, "=>", np.mean(_mse_list))
+    result = result[0][0].p_dict()
+    print("best-sp:", result)
+    return result
 
 
 if __name__ == '__main__':
+    assert parse_result.train_mode or parse_result.test_mode or parse_result.cv_mode
+
+    SP = SuperParameters(**BEST_SP)
     if parse_result.train_mode:
-        start_training(parse_result.epoch)
+        start_training(SP, epochs=parse_result.epoch)
+    elif parse_result.test_mode:
+        start_test(SP)
     else:
-        start_test()
+        start_cv_search(parse_result.epoch, parse_result.patience)

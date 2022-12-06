@@ -14,3 +14,6 @@ hyper-params/cv*
 
 # test
 *-test.py
+
+data/
+logs/

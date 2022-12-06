@@ -95,6 +95,17 @@ def calc_cv_average_metrics(threshold):
     v_mean_and_std_deviation(perform_metric_mat)
 
 
+def regression_metrics_from_disk():
+    mse_mat = []
+    for i in range(5):
+        y = pickle.load(
+            open(os.path.join(PICKLE_DEST_ROOT, f"{i}-y_test.p"), "rb"))
+        y_predict = pickle.load(
+            open(os.path.join(PICKLE_DEST_ROOT, f"{i}-predict.p"), "rb"))
+        mse_mat.append((mse_metrics(y, y_predict)))
+    v_mean_and_std_deviation(mse_mat)
+
 if __name__ == '__main__':
-    calc_cv_average_metrics(threshold=30)
+    # calc_cv_average_metrics(threshold=30)
     # cv_threshold_select()
+    regression_metrics_from_disk()

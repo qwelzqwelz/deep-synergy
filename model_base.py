@@ -225,7 +225,7 @@ def start_inner_cv_search(epochs=None, patience=50):
     return result
 
 
-if __name__ == '__main__':
+def main():
     assert parse_result.train_mode or parse_result.test_mode or parse_result.cv_mode
 
     HP = HyperParameters.load_from(parse_result.hp_name)
@@ -238,3 +238,6 @@ if __name__ == '__main__':
         start_test(HP)
     else:
         start_inner_cv_search(parse_result.epoch, parse_result.patience)
+
+if __name__ == '__main__':
+    main()

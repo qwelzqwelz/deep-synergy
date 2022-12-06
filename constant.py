@@ -1,6 +1,6 @@
 import os
 
-DATA_ROOT = "/home/lizhuang@corp.sse.tongji.edu.cn/data/deep-synergy"
+DATA_ROOT = "/home/lizhuang@corp.sse.tongji.edu.cn/deep-synergy/data"
 
 #
 WEIGHT_ROOT = "./weights"
